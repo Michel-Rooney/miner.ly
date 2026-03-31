@@ -1,9 +1,9 @@
-package com.rooney.minerly.models;
+package com.rooney.minerly.models.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record Translation(
-        LanguageInfo language,
-        String word
+public record Language(
+        String code,
+        String name
 ) {}

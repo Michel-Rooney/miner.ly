@@ -3,6 +3,10 @@ package com.rooney.minerly.managers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rooney.minerly.enums.LanguageCode;
 import com.rooney.minerly.models.Word;
+import com.rooney.minerly.models.response.Entry;
+import com.rooney.minerly.models.response.Sense;
+import com.rooney.minerly.models.response.Translation;
+import com.rooney.minerly.models.response.WordResponse;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,13 +38,13 @@ public class MinerManager {
         return words;
     }
 
-    public static List<Word> requestWords(LanguageCode language, List<String> words) {
+    public static List<WordResponse> requestWords(LanguageCode languageCode, List<String> wordsToSearch) {
         // https://freedictionaryapi.com/api/v1/entries/en/hello?translations=true
         boolean translations = true;
-        List<Word> wordsModel = new ArrayList<>();
+        List<WordResponse> words = new ArrayList<>();
 
-        for (String word : words) {
-            String path = String.format("%s/%s?translations=%s", language.getCode(), word, Boolean.toString(translations));
+        for (String wordToSearch : wordsToSearch) {
+            String path = String.format("%s/%s?translations=%s", languageCode.getCode(), wordToSearch, Boolean.toString(translations));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_API_URL + path))
@@ -49,15 +53,63 @@ public class MinerManager {
 
             try {
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                System.out.println(response.body());
-                Word wordModel = mapper.readValue(response.body(), Word.class);
-                wordsModel.add(wordModel);
+                WordResponse word = mapper.readValue(response.body(), WordResponse.class);
+                words.add(word);
             } catch (Exception e) {
                 throw new RuntimeException("Request error: " + e.getMessage());
             }
 
         }
 
-        return wordsModel;
+        return words;
+    }
+
+    public static List<Word> mapperWords(List<WordResponse> wordResponseList) {
+        List<Word> words = new ArrayList<>();
+
+        for (WordResponse wordResponse : wordResponseList) {
+            for (Entry entry : wordResponse.entries()) {
+                for (Sense sense : entry.senses()) {
+                    String word = wordResponse.word();
+                    String partOfSpeech = entry.partOfSpeech();
+                    String definition = sense.definition();
+                    List<String> examples = sense.examples();
+
+                    String translationCode = "";
+                    String translationName = "";
+                    String translationWord = "";
+
+                    List<Translation> translationList = sense.translations().stream()
+                            .filter(translation1 -> translation1.language().code().equals("pt"))
+                            .toList();
+
+                    if (!translationList.isEmpty()) {
+                        translationCode = translationList.getFirst().language().code();
+                        translationName = translationList.getFirst().language().name();
+                        translationWord = translationList.getFirst().word();
+                    }
+
+                    if (examples.isEmpty()) {
+                        continue;
+                    }
+
+                    if (translationWord.isEmpty()) {
+                        continue;
+                    }
+
+                    words.add(new Word(
+                            word,
+                            partOfSpeech,
+                            definition,
+                            examples,
+                            translationCode,
+                            translationName,
+                            translationWord
+                    ));
+                }
+            }
+        }
+
+        return words;
     }
 }

@@ -1,0 +1,25 @@
+{
+  "word": "string",
+  "entries": [
+    {
+      "partOfSpeech": "string",
+      "senses": [
+        {
+          "definition": "string",
+          "examples": [
+            "string"
+          ],
+          "translations": [
+            {
+              "language": {
+                "code": "string",
+                "name": "string"
+              },
+              "word": "string"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

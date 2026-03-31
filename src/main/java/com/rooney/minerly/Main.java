@@ -2,60 +2,42 @@ package com.rooney.minerly;
 
 import com.rooney.minerly.enums.LanguageCode;
 import com.rooney.minerly.managers.MinerManager;
-import com.rooney.minerly.models.Entry;
-import com.rooney.minerly.models.Sense;
-import com.rooney.minerly.models.Translation;
 import com.rooney.minerly.models.Word;
+import com.rooney.minerly.models.response.WordResponse;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.List;
-import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
 
         File inputFile = new File("input.txt");
-        List<String> words = MinerManager.readInputFile(inputFile);
-        System.out.println(words);
+        List<String> wordFileList = MinerManager.readInputFile(inputFile);
+        System.out.println(wordFileList);
 
-        List<Word> wordsModel = MinerManager.requestWords(LanguageCode.EN, words.subList(0, 3));
+        List<WordResponse> wordResponseList = MinerManager.requestWords(LanguageCode.EN, wordFileList.subList(0, 3));
+        List<Word> wordList = MinerManager.mapperWords(wordResponseList);
 
-        for (Word word : wordsModel) {
-            // Supondo que 'entries' seja sua List<Entry> vinda do Jackson
-            for (Entry entry : word.entries()) {
-                System.out.println("========== ENTRADA ==========");
-                System.out.println(word.word());
+        System.out.println("==================================================");
+        System.out.println("             DICIONÁRIO DE PALAVRAS               ");
+        System.out.println("==================================================");
 
-                for (Sense sense : entry.senses()) {
-                    System.out.println("\n[DEFINIÇÃO]");
-                    System.out.println("-> " + sense.definition());
+        for (Word w : wordList) {
+            System.out.printf("📖 Palavra: %s [%s]%n", w.word().toUpperCase(), w.partOfSpeech());
+            System.out.printf("🌍 Tradução: %s (%s - %s)%n", w.translationWord(), w.translationName(), w.translationCode());
+            System.out.printf("💡 Definição: %s%n", w.definition());
 
-                    // Listar Exemplos, se houver
-                    if (sense.examples() != null && !sense.examples().isEmpty()) {
-                        System.out.println("  Exemplos:");
-                        for (String example : sense.examples()) {
-                            System.out.println("    * " + example);
-                        }
-                    }
-
-                    // Listar Traduções, se houver
-                    if (sense.translations() != null && !sense.translations().isEmpty()) {
-                        System.out.print("  Traduções: ");
-                        for (int i = 0; i < sense.translations().size(); i++) {
-                            Translation t = sense.translations().get(i);
-                            // Ex: "Português (perdido)"
-                            System.out.print(t.language().name() + " (" + t.word() + ")");
-
-                            // Apenas para colocar uma vírgula entre as traduções
-                            if (i < sense.translations().size() - 1) System.out.print(", ");
-                        }
-                        System.out.println();
-                    }
+            System.out.println("📝 Exemplos:");
+            if (w.examples() == null || w.examples().isEmpty()) {
+                System.out.println("   - (Nenhum exemplo disponível)");
+            } else {
+                for (String exemplo : w.examples()) {
+                    System.out.printf("   • \"%s\"%n", exemplo);
                 }
-                System.out.println("\n");
             }
+
+            System.out.println("--------------------------------------------------");
         }
     }
 }
