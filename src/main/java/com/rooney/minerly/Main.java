@@ -1,39 +1,33 @@
 package com.rooney.minerly;
 
-import com.rooney.minerly.enums.LanguageCode;
 import com.rooney.minerly.managers.MinerManager;
 import com.rooney.minerly.models.Word;
-import com.rooney.minerly.models.response.WordResponse;
 
 import java.io.File;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello, World!");
-
         File inputFile = new File("input.txt");
         List<String> wordFileList = MinerManager.readInputFile(inputFile);
-        System.out.println(wordFileList);
 
-        List<WordResponse> wordResponseList = MinerManager.requestWords(LanguageCode.EN, wordFileList.subList(0, 3));
-        List<Word> wordList = MinerManager.mapperWords(wordResponseList);
+        List<Word> wordList = MinerManager.requestWords(wordFileList);
 
         System.out.println("==================================================");
-        System.out.println("             DICIONÁRIO DE PALAVRAS               ");
+        System.out.println("               DICTIONARY OF WORDS                ");
         System.out.println("==================================================");
 
         for (Word w : wordList) {
-            System.out.printf("📖 Palavra: %s [%s]%n", w.word().toUpperCase(), w.partOfSpeech());
-            System.out.printf("🌍 Tradução: %s (%s - %s)%n", w.translationWord(), w.translationName(), w.translationCode());
-            System.out.printf("💡 Definição: %s%n", w.definition());
+            System.out.printf("📖 Word: %s [%s]%n", w.word().toUpperCase(), w.partOfSpeech());
+            System.out.printf("🌍 Translation: %s%n", w.translation());
+            System.out.printf("💡 Definition: %s%n", w.definition());
 
-            System.out.println("📝 Exemplos:");
+            System.out.println("📝 Examples:");
             if (w.examples() == null || w.examples().isEmpty()) {
-                System.out.println("   - (Nenhum exemplo disponível)");
+                System.out.println("   - (No examples available)");
             } else {
-                for (String exemplo : w.examples()) {
-                    System.out.printf("   • \"%s\"%n", exemplo);
+                for (String example : w.examples()) {
+                    System.out.printf("   • \"%s\"%n", example);
                 }
             }
 

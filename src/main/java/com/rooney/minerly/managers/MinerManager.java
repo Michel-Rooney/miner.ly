@@ -1,28 +1,24 @@
 package com.rooney.minerly.managers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rooney.minerly.enums.LanguageCode;
+import com.rooney.minerly.enums.HttpStatus;
 import com.rooney.minerly.models.Word;
-import com.rooney.minerly.models.response.Entry;
-import com.rooney.minerly.models.response.Sense;
-import com.rooney.minerly.models.response.Translation;
-import com.rooney.minerly.models.response.WordResponse;
+import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 public class MinerManager {
 
-    private static final String BASE_API_URL = "https://freedictionaryapi.com/api/v1/entries/";
-    private static final HttpClient client = HttpClient.newHttpClient();
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final String OXFORD_URL = "https://www.oxfordlearnersdictionaries.com/us/definition/english/";
 
     public static List<String> readInputFile(File inputFile) {
         List<String> words = new ArrayList<>();
@@ -36,78 +32,80 @@ public class MinerManager {
         }
 
         return words;
+
     }
 
-    public static List<WordResponse> requestWords(LanguageCode languageCode, List<String> wordsToSearch) {
-        // https://freedictionaryapi.com/api/v1/entries/en/hello?translations=true
-        boolean translations = true;
-        List<WordResponse> words = new ArrayList<>();
-
-        for (String wordToSearch : wordsToSearch) {
-            String path = String.format("%s/%s?translations=%s", languageCode.getCode(), wordToSearch, Boolean.toString(translations));
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_API_URL + path))
-                    .GET()
-                    .build();
-
-            try {
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                WordResponse word = mapper.readValue(response.body(), WordResponse.class);
-                words.add(word);
-            } catch (Exception e) {
-                throw new RuntimeException("Request error: " + e.getMessage());
-            }
-
-        }
-
-        return words;
-    }
-
-    public static List<Word> mapperWords(List<WordResponse> wordResponseList) {
+    public static List<Word> requestWord(String wordToSearch) {
+        String url = OXFORD_URL + wordToSearch;
         List<Word> words = new ArrayList<>();
 
-        for (WordResponse wordResponse : wordResponseList) {
-            for (Entry entry : wordResponse.entries()) {
-                for (Sense sense : entry.senses()) {
-                    String word = wordResponse.word();
-                    String partOfSpeech = entry.partOfSpeech();
-                    String definition = sense.definition();
-                    List<String> examples = sense.examples();
+        try {
+            Connection.Response response = Jsoup.connect(url)
+                    .userAgent("Mozilla/5.0")
+                    .ignoreHttpErrors(true)
+                    .execute();
 
-                    String translationCode = "";
-                    String translationName = "";
-                    String translationWord = "";
-
-                    List<Translation> translationList = sense.translations().stream()
-                            .filter(translation1 -> translation1.language().code().equals("pt"))
-                            .toList();
-
-                    if (!translationList.isEmpty()) {
-                        translationCode = translationList.getFirst().language().code();
-                        translationName = translationList.getFirst().language().name();
-                        translationWord = translationList.getFirst().word();
-                    }
-
-                    if (examples.isEmpty()) {
-                        continue;
-                    }
-
-                    if (translationWord.isEmpty()) {
-                        continue;
-                    }
-
-                    words.add(new Word(
-                            word,
-                            partOfSpeech,
-                            definition,
-                            examples,
-                            translationCode,
-                            translationName,
-                            translationWord
-                    ));
-                }
+            if (response.statusCode() == HttpStatus.NOT_FOUND.getCode()) {
+                // TODO: VALIDATE WHEN THE WORD IS WRONG
+                throw new RuntimeException(
+                        wordToSearch + " - " + HttpStatus.NOT_FOUND.getCode() + " - " + HttpStatus.NOT_FOUND.getText() + " - " + url
+                );
             }
+
+            if (response.statusCode() != HttpStatus.SUCCESS.getCode()) {
+                throw new RuntimeException(wordToSearch + " - " + url);
+            }
+
+            Document documentRoot = response.parse();
+            Element document = documentRoot.select(".entry").getFirst();
+            Element header = document.select(".top-container").getFirst();
+            Element titleWord = header.select(".headword").getFirst();
+            Element partOfSpeech = header.select(".pos").getFirst();
+
+            Element senses;
+            if (!document.select(".senses_multiple").isEmpty()) {
+                senses = document.select(".senses_multiple").getFirst();
+            } else {
+                senses = document.select(".sense_single").getFirst();
+            }
+
+            for (Element sense : senses.children()) {
+                if (sense.select(".def").isEmpty()) {continue;}
+                if (sense.select(".examples").isEmpty()) {continue;}
+
+                Element definition = sense.select(".def").getFirst();
+                Element examples = sense.select(".examples").getFirst();
+                List<String> examplesText = examples.children().stream()
+                        .map(Element::text)
+                        .toList();
+
+                words.add(new Word(
+                        titleWord.text(),
+                        partOfSpeech.text(),
+                        definition.text(),
+                        examplesText,
+                        "Implement"
+                ));
+            }
+
+            return words;
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public static List<Word> requestWords(List<String> wordToSearchList) {
+        List<Word> words = new ArrayList<>();
+        int index = 0;
+        int size = wordToSearchList.size();
+
+        for (String wordToSearch : wordToSearchList) {
+            System.out.printf("(%02d/%02d) - Loading...\r", ++index, size);
+            try {
+                List<Word> sameWordList = requestWord(wordToSearch);
+                words.addAll(sameWordList);
+                Thread.sleep(500);
+            } catch (InterruptedException | RuntimeException ignored) {}
         }
 
         return words;

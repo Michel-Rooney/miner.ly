@@ -7,7 +7,5 @@ public record Word(
         String partOfSpeech,
         String definition,
         List<String> examples,
-        String translationCode,
-        String translationName,
-        String translationWord
+        String translation
 ) {}
