@@ -1,6 +1,7 @@
 package com.rooney.minerly.managers;
 
 import com.rooney.minerly.enums.HttpStatus;
+import com.rooney.minerly.enums.LanguageCode;
 import com.rooney.minerly.models.Word;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -85,12 +86,18 @@ public class MinerManager {
                         .map(Element::text)
                         .toList();
 
-                words.add(new Word(
+                String translation = ContextualTranslator.translate(
+                        titleWord.text(), definition.text(), examplesText.getFirst(), LanguageCode.PT_BR
+                );
+
+                Word word = new Word(
                         titleWord.text(),
                         partOfSpeech.text(),
                         definition.text(),
                         examplesText,
-                        "Implement"));
+                        translation);
+
+                words.add(word);
             }
 
             return words;
@@ -149,6 +156,7 @@ public class MinerManager {
 
     private static String formatAnkiLine(Word word, String example) {
         String term = word.word();
+        String translation = word.translation();
         String rawDefinition = word.definition().trim().replace(";", ",");
 
         String highlightedExample = example.contains(term)
@@ -159,7 +167,7 @@ public class MinerManager {
                 "<b>CIMV - I+1</b><br>%s;<b>%s</b>: %s<br>%s",
                 highlightedExample,
                 term,
-                "HERE",
+                translation,
                 rawDefinition
         );
     }

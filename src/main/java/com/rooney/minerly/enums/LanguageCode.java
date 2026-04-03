@@ -2,7 +2,7 @@ package com.rooney.minerly.enums;
 
 public enum LanguageCode {
     EN("en"), // English
-    PT("pt"), // Portuguese
+    PT_BR("pt-BR"), // Portuguese
     ES("es"), // Spanish
     FR("fr"), // French
     DE("de"), // German
