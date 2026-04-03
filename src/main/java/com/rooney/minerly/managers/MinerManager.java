@@ -3,15 +3,17 @@ package com.rooney.minerly.managers;
 import com.rooney.minerly.enums.HttpStatus;
 import com.rooney.minerly.models.Word;
 import org.jsoup.Connection;
-import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -24,8 +26,8 @@ public class MinerManager {
         List<String> words = new ArrayList<>();
 
         try (Scanner scanner = new Scanner(inputFile)) {
-            while (scanner.hasNext()) {
-                words.add(scanner.next().trim().replaceAll("[^a-zA-Z ]", ""));
+            while (scanner.hasNextLine()) {
+                words.add(scanner.nextLine().trim().replaceAll("[^a-zA-Z ]", ""));
             }
         } catch (FileNotFoundException e) {
             throw new RuntimeException("Read input file: " + e.getMessage());
@@ -48,8 +50,8 @@ public class MinerManager {
             if (response.statusCode() == HttpStatus.NOT_FOUND.getCode()) {
                 // TODO: VALIDATE WHEN THE WORD IS WRONG
                 throw new RuntimeException(
-                        wordToSearch + " - " + HttpStatus.NOT_FOUND.getCode() + " - " + HttpStatus.NOT_FOUND.getText() + " - " + url
-                );
+                        wordToSearch + " - " + HttpStatus.NOT_FOUND.getCode() + " - " + HttpStatus.NOT_FOUND.getText() + " - "
+                                + url);
             }
 
             if (response.statusCode() != HttpStatus.SUCCESS.getCode()) {
@@ -70,8 +72,12 @@ public class MinerManager {
             }
 
             for (Element sense : senses.children()) {
-                if (sense.select(".def").isEmpty()) {continue;}
-                if (sense.select(".examples").isEmpty()) {continue;}
+                if (sense.select(".def").isEmpty()) {
+                    continue;
+                }
+                if (sense.select(".examples").isEmpty()) {
+                    continue;
+                }
 
                 Element definition = sense.select(".def").getFirst();
                 Element examples = sense.select(".examples").getFirst();
@@ -84,8 +90,7 @@ public class MinerManager {
                         partOfSpeech.text(),
                         definition.text(),
                         examplesText,
-                        "Implement"
-                ));
+                        "Implement"));
             }
 
             return words;
@@ -105,9 +110,57 @@ public class MinerManager {
                 List<Word> sameWordList = requestWord(wordToSearch);
                 words.addAll(sameWordList);
                 Thread.sleep(500);
-            } catch (InterruptedException | RuntimeException ignored) {}
+            } catch (InterruptedException | RuntimeException ignored) {
+                System.out.printf("Failure to process word: (%s)!\n", wordToSearch);
+            }
         }
 
         return words;
+    }
+
+    public static void exportToAnki(List<Word> words) {
+        Path outputPath = Path.of("output.txt");
+        int currentProgress = 0;
+        int totalWords = words.size();
+
+        try {
+            Files.deleteIfExists(outputPath);
+        } catch (IOException e) {
+            System.err.printf("Error clearing output file: %s%n", e.getMessage());
+        }
+
+        try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+
+            for (Word word : words) {
+                System.out.printf("(%02d/%02d) - Saving: %s...\r", ++currentProgress, totalWords, word.word());
+
+                for (String example : word.examples()) {
+                    String entry = formatAnkiLine(word, example);
+                    writer.write(entry);
+                    writer.newLine();
+                }
+            }
+            System.out.println("\nExport completed successfully!");
+
+        } catch (IOException e) {
+            System.err.println("Critical failure processing output file: " + e.getMessage());
+        }
+    }
+
+    private static String formatAnkiLine(Word word, String example) {
+        String term = word.word();
+        String rawDefinition = word.definition().trim().replace(";", ",");
+
+        String highlightedExample = example.contains(term)
+                ? example.replace(term, "<b>" + term + "</b>")
+                : example;
+
+        return String.format(
+                "<b>CIMV - I+1</b><br>%s;<b>%s</b>: %s<br>%s",
+                highlightedExample,
+                term,
+                "HERE",
+                rawDefinition
+        );
     }
 }

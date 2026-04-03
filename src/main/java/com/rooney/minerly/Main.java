@@ -10,9 +10,12 @@ public class Main {
     public static void main(String[] args) {
         File inputFile = new File("input.txt");
         List<String> wordFileList = MinerManager.readInputFile(inputFile);
-
         List<Word> wordList = MinerManager.requestWords(wordFileList);
+        // printWords(wordList);
+        MinerManager.exportToAnki(wordList);
+    }
 
+    public static void printWords(List<Word> wordList) {
         System.out.println("==================================================");
         System.out.println("               DICTIONARY OF WORDS                ");
         System.out.println("==================================================");
